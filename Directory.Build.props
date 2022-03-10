@@ -1,0 +1,8 @@
+<Project>
+	<PropertyGroup>
+		<RepoDir>$(MSBuildThisFileDirectory)</RepoDir>
+		<BinDir>$(RepoDir)bin\</BinDir>
+		<OutputPath>$(BinDir)$(Configuration)\</OutputPath>
+		<OutDir>$(BinDir)$(Configuration)\</OutDir>
+	</PropertyGroup>
+</Project>
