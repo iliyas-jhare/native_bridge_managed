@@ -1,126 +1,102 @@
 ﻿
 #include "native_calls.h"
+#include "file_system.h"
+#include "callbacks.h"
 
+#include <cassert>
 #include <Windows.h>
-#include <Shlwapi.h>
 #include <memory>
-#include <filesystem>
 #include <istream>
 #include <iostream>
-#include <string>
 
 namespace
 {
 	constexpr const char* bridge_dll = "Bridge.dll";
+	constexpr const char* create_native_calls_func_name = "create_native_calls";
 
-	auto load_module(const wchar_t* name) -> HMODULE
+	class module
 	{
-		return LoadLibraryW(name);
+	public:
+		explicit module(const wchar_t* name)
+			: file_name(name)
+			, h_module(LoadLibraryW(name))
+		{}
+
+		~module()
+		{
+			assert(FreeLibrary(h_module));
+		}
+
+		template<typename T>
+		T get_proc_address(const char* name)
+		{
+			return T(GetProcAddress(h_module, name));
+		}
+
+	private:
+		std::wstring file_name;
+		HMODULE h_module;
+	};
+
+	auto load_bridge_module() -> std::shared_ptr<module>
+	{
+		return std::make_shared<module>(get_file_path(bridge_dll).c_str());
 	}
 
-	auto free_module(HMODULE module) -> BOOL
+	auto create_native_calls(std::shared_ptr<module> module_p) -> native_calls
 	{
-		return FreeLibrary(module);
+		const auto proc = module_p->get_proc_address<create_native_calls_fn>(create_native_calls_func_name);
+		assert(proc);
+		return proc(create_bridge_callbacks());
 	}
 
-	auto get_proc_address(HMODULE module, LPCSTR name) -> FARPROC
+	void show_program_help()
 	{
-		return GetProcAddress(module, name);
+		std::cout
+			<< "Please enter command:" << std::endl
+			<< "  show   -  to show window" << std::endl
+			<< "  exit   -  to exit application" << std::endl
+			<< "  greet  -  send greetings to managed" << std::endl
+			<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-" << std::endl;
 	}
 
-	auto get_module_dir() -> std::wstring
+	void handle_commands(const native_calls& calls)
 	{
-		WCHAR path[MAX_PATH] = { 0 };
-		GetModuleFileName(NULL, path, MAX_PATH);
-		PathRemoveFileSpec(path);
-		return std::wstring{ path };
-	}
-
-	auto get_file_path(const char* name) -> std::wstring
-	{
-		auto dir = get_module_dir();
-		std::filesystem::path path{ dir };
-		path = path / name;
-		return path.wstring();
-	}
-
-	void log(const char* msg)
-	{
-		std::cout << msg << std::endl;
-	}
-
-	void* owner_handle()
-	{
-		return GetConsoleWindow();
-	}
-
-	auto create_bridge_callbacks() -> bridge_callbacks
-	{
-		return { log, owner_handle };
+		auto keep = true;
+		while (keep)
+		{
+			std::string line;
+			if (std::getline(std::cin, line))
+			{
+				keep = line != "exit";
+				if (line == "show")
+				{
+					calls.show();
+				}
+				if (line == "greet")
+				{
+					calls.greet("Greetings from Native");
+				}
+			}
+		}
 	}
 }
 
-class module
-{
-public:
-	explicit module(const std::wstring name)
-		: handle(load_module(name.c_str()))
-	{
-	}
-
-	~module()
-	{
-		free_module(handle);
-	}
-
-	template<typename T>
-	T get_procedure(LPCSTR name)
-	{
-		return T(get_proc_address(handle, name));
-	}
-
-private:
-	HMODULE handle;
-};
-
 int main()
 {
-	auto mdl = std::make_shared<module>(get_file_path(bridge_dll));
-	native_calls calls;
 	try
 	{
-		const auto func_name = "create_native_calls";
-		const auto proc = mdl->get_procedure<create_native_calls_fn>(func_name);
-		calls = proc(create_bridge_callbacks());
+		std::shared_ptr<module> module_p = load_bridge_module();
+		assert(module_p);
+		native_calls calls = create_native_calls(module_p);
+		assert(calls);
+		show_program_help();
+		handle_commands(calls);
+		return 1;
 	}
 	catch (const std::exception& e)
 	{
 		std::cout << e.what();
 		return 0;
 	}
-
-	std::cout
-		<< "Please enter command:" << std::endl
-		<< "  show   -  to show window" << std::endl
-		<< "  exit   -  to exit application" << std::endl
-		<< "  greet  -  send greetings to managed" << std::endl
-		<< "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-" << std::endl;
-
-	auto keep = true;
-	do
-	{
-		std::string line;
-		if (std::getline(std::cin, line))
-		{
-			keep = line != "exit";
-			if (line == "show")
-			{
-				calls.show();
-			}
-			if (line == "greet")
-			{
-				calls.greet("Greetings from Native");
-			}
-		}
-	} while (keep);
 }

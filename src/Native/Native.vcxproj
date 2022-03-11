@@ -84,7 +84,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="callbacks.cpp" />
+    <ClCompile Include="file_system.cpp" />
     <ClCompile Include="program.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="callbacks.h" />
+    <ClInclude Include="file_system.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
