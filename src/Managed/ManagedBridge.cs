@@ -1,5 +1,5 @@
 ﻿using Prism.Events;
-using System;
+using System.Threading;
 using System.Windows.Threading;
 
 namespace Managed
@@ -9,14 +9,18 @@ namespace Managed
         private static IEventAggregator eventAggregator = default;
         private static Dispatcher dispatcher = default;
 
-        [STAThread]
         public static void Show(IManagedCallbacks callbacks) =>
             ExceptionGate.Gaurd(() =>
             {
-                eventAggregator = new EventAggregator();
-                dispatcher = Dispatcher.CurrentDispatcher;
-                new Factory(callbacks, eventAggregator, dispatcher).Show();
-                Dispatcher.Run();
+                var thread = new Thread(new ThreadStart(() =>
+                {
+                    eventAggregator = new EventAggregator();
+                    dispatcher = Dispatcher.CurrentDispatcher;
+                    new Factory(callbacks, eventAggregator, dispatcher).Show();
+                    Dispatcher.Run();
+                }));
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.Start();
             });
 
         public static void Greet(string message) =>

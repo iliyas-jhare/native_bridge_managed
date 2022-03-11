@@ -14,3 +14,8 @@ auto convert(std::string s)->System::String^
 {
 	return msclr::interop::marshal_as<System::String^>(s);
 }
+
+auto convert(void* ptr)->System::IntPtr
+{
+	return msclr::interop::marshal_as<System::IntPtr>(ptr);
+}

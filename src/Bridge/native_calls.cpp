@@ -8,24 +8,7 @@
 
 namespace
 {
-	using namespace System;
-	using namespace Threading;
-
 	callbacks_ptr callbacks_p;
-
-	ref class clr_calls abstract sealed
-	{
-	public:
-		static void show()
-		{
-			Managed::ManagedBridge::Show(gcnew ManagedCallbacks(*callbacks_p));
-		}
-
-		static void greet(std::string s)
-		{
-			Managed::ManagedBridge::Greet(convert(s));
-		}
-	};
 
 	void log(const char* msg)
 	{
@@ -39,9 +22,7 @@ namespace
 	{
 		try
 		{
-			Thread^ thread = gcnew Thread(gcnew ThreadStart(&clr_calls::show));
-			thread->SetApartmentState(ApartmentState::STA);
-			thread->Start();
+			Managed::ManagedBridge::Show(gcnew ManagedCallbacks(*callbacks_p));
 		}
 		catch (const std::exception& e)
 		{
@@ -53,7 +34,7 @@ namespace
 	{
 		try
 		{
-			clr_calls::greet(msg);
+			Managed::ManagedBridge::Greet(convert(msg));
 		}
 		catch (const std::exception& e)
 		{
